@@ -25,7 +25,7 @@ echo ""
 echo -e "${BLUE}Checking build dependencies...${NC}"
 MISSING_DEPS=""
 
-for tool in dpkg-buildpackage debhelper dh-make fakeroot; do
+for tool in debhelper dh-make fakeroot; do
     if ! command -v $tool &> /dev/null; then
         MISSING_DEPS="$MISSING_DEPS $tool"
     fi
@@ -35,7 +35,7 @@ if [ -n "$MISSING_DEPS" ]; then
     echo -e "${YELLOW}Missing build dependencies:${NC}$MISSING_DEPS"
     echo ""
     echo "Install them with:"
-    echo -e "${BOLD}sudo apt-get install build-essential debhelper devscripts${NC}"
+    echo -e "${BOLD}sudo apt-get install build-essential debhelper devscripts dh-make fakeroot${NC}"
     exit 1
 fi
 
