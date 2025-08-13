@@ -45,6 +45,10 @@ sudo ./bin/powervigil-verify
 
 ### Method 2: Debian Package (Recommended for Mass Deployment)
 ```bash
+# Install build dependencies (one-time setup)
+sudo apt-get update
+sudo apt-get install -y dpkg-dev debhelper devscripts build-essential
+
 # Build the package
 ./build-deb.sh
 
