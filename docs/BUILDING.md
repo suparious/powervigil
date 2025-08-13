@@ -26,6 +26,29 @@ The package will be created in the parent directory as:
 ../powervigil_1.0.0-1_all.deb
 ```
 
+## Important: Maintainer Script Modifications
+
+During the build process, you'll notice that `debian/postinst`, `debian/prerm`, and `debian/postrm` get modified. **DO NOT commit these changes!**
+
+These modifications are debhelper automatically expanding the `#DEBHELPER#` tokens into boilerplate code. They are build artifacts, not source changes.
+
+### Handling Modified Scripts
+
+**Option 1: Use the build script (automatic)**
+```bash
+./build-deb.sh  # Now automatically backs up and restores scripts
+```
+
+**Option 2: Clean after build**
+```bash
+./clean-build.sh  # Resets all build artifacts
+```
+
+**Option 3: Manual reset**
+```bash
+git checkout -- debian/postinst debian/prerm debian/postrm
+```
+
 ## Troubleshooting
 
 ### Missing Dependencies
