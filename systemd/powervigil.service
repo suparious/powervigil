@@ -1,0 +1,14 @@
+[Unit]
+Description=PowerVigil™ - Kiosk Performance & Recovery Framework
+After=multi-user.target graphical.target
+Wants=graphical.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/powervigil-enforce
+RemainAfterExit=yes
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=graphical.target

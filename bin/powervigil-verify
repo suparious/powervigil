@@ -1,0 +1,247 @@
+#!/bin/bash
+
+################################################################################
+# PowerVigil™ - Kiosk Performance & Recovery Framework
+# Copyright (C) 2025 - GPL v3 License
+# 
+# Verification Module
+# Version: 1.0.0
+# 
+# This script verifies all PowerVigil™ protection layers are properly configured
+################################################################################
+
+# PowerVigil™ Branding
+POWERVIGIL_VERSION="1.0.0"
+POWERVIGIL_NAME="PowerVigil™"
+
+# Color codes
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+BOLD='\033[1m'
+NC='\033[0m'
+
+echo -e "${CYAN}${BOLD}"
+echo "═══════════════════════════════════════════════════════════════════"
+echo "   PowerVigil™ Status Verification"
+echo "   Version: $POWERVIGIL_VERSION"
+echo "═══════════════════════════════════════════════════════════════════"
+echo -e "${NC}"
+
+ISSUES=0
+WARNINGS=0
+
+check_pass() {
+    echo -e "  ${GREEN}✓${NC} $1"
+}
+
+check_fail() {
+    echo -e "  ${RED}✗${NC} $1"
+    ((ISSUES++))
+}
+
+check_warn() {
+    echo -e "  ${YELLOW}!${NC} $1"
+    ((WARNINGS++))
+}
+
+# Layer 1: Systemd targets
+echo -e "${BOLD}Layer 1: Systemd Power Targets${NC}"
+for target in sleep.target suspend.target hibernate.target hybrid-sleep.target; do
+    if systemctl is-enabled $target 2>/dev/null | grep -q "masked"; then
+        check_pass "$target is masked"
+    else
+        check_fail "$target is NOT masked"
+    fi
+done
+
+# Layer 2: CPU Governor
+echo -e "\n${BOLD}Layer 2: CPU Performance Mode${NC}"
+PERF_COUNT=0
+TOTAL_COUNT=0
+for cpu in /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor; do
+    if [ -f "$cpu" ]; then
+        ((TOTAL_COUNT++))
+        if grep -q "performance" "$cpu"; then
+            ((PERF_COUNT++))
+        fi
+    fi
+done
+if [ "$PERF_COUNT" -eq "$TOTAL_COUNT" ] && [ "$TOTAL_COUNT" -gt 0 ]; then
+    check_pass "All $TOTAL_COUNT CPUs in performance mode"
+else
+    check_fail "Only $PERF_COUNT/$TOTAL_COUNT CPUs in performance mode"
+fi
+
+# Layer 3: Console blanking
+echo -e "\n${BOLD}Layer 3: Console Blanking${NC}"
+if [ -f /sys/module/kernel/parameters/consoleblank ]; then
+    BLANK_VAL=$(cat /sys/module/kernel/parameters/consoleblank)
+    if [ "$BLANK_VAL" = "0" ]; then
+        check_pass "Console blanking disabled (value: $BLANK_VAL)"
+    else
+        check_fail "Console blanking NOT disabled (value: $BLANK_VAL)"
+    fi
+else
+    check_warn "Cannot check console blanking parameter"
+fi
+
+# Layer 4: Kernel parameters
+echo -e "\n${BOLD}Layer 4: Kernel Boot Parameters${NC}"
+if grep -q "consoleblank=0" /proc/cmdline; then
+    check_pass "consoleblank=0 present in kernel cmdline"
+else
+    check_warn "consoleblank=0 not in kernel cmdline (reboot required?)"
+fi
+
+if grep -q "idle=poll" /proc/cmdline; then
+    check_pass "idle=poll present (maximum performance)"
+else
+    check_warn "idle=poll not present (consider adding for max performance)"
+fi
+
+# Layer 5: USB Autosuspend
+echo -e "\n${BOLD}Layer 5: USB Power Management${NC}"
+USB_ON=0
+USB_TOTAL=0
+for i in /sys/bus/usb/devices/*/power/control; do
+    if [ -f "$i" ]; then
+        ((USB_TOTAL++))
+        if grep -q "on" "$i"; then
+            ((USB_ON++))
+        fi
+    fi
+done
+if [ "$USB_ON" -eq "$USB_TOTAL" ] && [ "$USB_TOTAL" -gt 0 ]; then
+    check_pass "All $USB_TOTAL USB devices have autosuspend disabled"
+else
+    check_warn "$USB_ON/$USB_TOTAL USB devices have autosuspend disabled"
+fi
+
+# Layer 6: X11 DPMS
+echo -e "\n${BOLD}Layer 6: Display Power Management${NC}"
+if [ -f /etc/X11/xorg.conf.d/10-powervigil.conf ]; then
+    check_pass "X11 PowerVigil™ configuration file exists"
+else
+    check_fail "X11 PowerVigil™ configuration file missing"
+fi
+
+# Check current DPMS status if X is running
+if [ -n "$DISPLAY" ] || [ -n "$WAYLAND_DISPLAY" ]; then
+    export DISPLAY=${DISPLAY:-:0}
+    if xset q 2>/dev/null | grep -q "DPMS is Disabled"; then
+        check_pass "DPMS is currently disabled in X session"
+    else
+        check_warn "DPMS might be enabled in X session"
+    fi
+fi
+
+# Layer 7: Systemd-logind
+echo -e "\n${BOLD}Layer 7: Systemd-logind Configuration${NC}"
+if [ -f /etc/systemd/logind.conf.d/powervigil.conf ]; then
+    check_pass "PowerVigil™ logind configuration exists"
+else
+    check_fail "PowerVigil™ logind configuration missing"
+fi
+
+# Layer 8: NetworkManager
+echo -e "\n${BOLD}Layer 8: Network Power Management${NC}"
+if [ -f /etc/NetworkManager/conf.d/powervigil.conf ]; then
+    check_pass "PowerVigil™ WiFi power saving configuration exists"
+else
+    check_warn "PowerVigil™ WiFi power saving configuration missing"
+fi
+
+# Layer 9: PowerVigil Services
+echo -e "\n${BOLD}Layer 9: PowerVigil™ Services${NC}"
+if [ -f /usr/local/bin/powervigil-enforce ]; then
+    check_pass "PowerVigil™ enforcement script installed"
+else
+    check_fail "PowerVigil™ enforcement script missing"
+fi
+
+if systemctl is-enabled powervigil.service 2>/dev/null | grep -q "enabled"; then
+    check_pass "PowerVigil™ service is enabled"
+    if systemctl is-active powervigil.service 2>/dev/null | grep -q "active"; then
+        check_pass "PowerVigil™ service is running"
+    else
+        check_warn "PowerVigil™ service is NOT running"
+    fi
+else
+    check_warn "PowerVigil™ service not found or not enabled"
+fi
+
+if systemctl is-enabled powervigil-watchdog.service 2>/dev/null | grep -q "enabled"; then
+    check_pass "PowerVigil™ watchdog is enabled"
+    if systemctl is-active powervigil-watchdog.service 2>/dev/null | grep -q "active"; then
+        check_pass "PowerVigil™ watchdog is running"
+    else
+        check_warn "PowerVigil™ watchdog is NOT running"
+    fi
+else
+    check_warn "PowerVigil™ watchdog not found or not enabled"
+fi
+
+# Layer 10: GPU Power Management
+echo -e "\n${BOLD}Layer 10: GPU Performance Settings${NC}"
+if command -v nvidia-smi &> /dev/null; then
+    if nvidia-smi -q | grep -q "Persistence Mode.*Enabled"; then
+        check_pass "NVIDIA persistence mode enabled"
+    else
+        check_warn "NVIDIA persistence mode not enabled"
+    fi
+fi
+
+if [ -f /sys/class/drm/card0/device/power_dpm_state ]; then
+    DPM_STATE=$(cat /sys/class/drm/card0/device/power_dpm_state 2>/dev/null)
+    if [ "$DPM_STATE" = "performance" ]; then
+        check_pass "AMD GPU in performance mode"
+    else
+        check_warn "AMD GPU not in performance mode (current: $DPM_STATE)"
+    fi
+fi
+
+# Summary
+echo ""
+echo -e "${CYAN}${BOLD}═══════════════════════════════════════════════════════════════════${NC}"
+echo -e "${BOLD}PowerVigil™ Status Summary${NC}"
+echo -e "${CYAN}${BOLD}═══════════════════════════════════════════════════════════════════${NC}"
+
+if [ $ISSUES -eq 0 ]; then
+    if [ $WARNINGS -eq 0 ]; then
+        echo -e "${GREEN}${BOLD}✓ All systems optimal!${NC}"
+        echo -e "${GREEN}PowerVigil™ is fully operational with all protection layers active.${NC}"
+    else
+        echo -e "${GREEN}${BOLD}✓ Core systems operational${NC}"
+        echo -e "${YELLOW}Found $WARNINGS minor warnings (non-critical)${NC}"
+        echo -e "${GREEN}PowerVigil™ is protecting your display effectively.${NC}"
+    fi
+else
+    echo -e "${RED}${BOLD}✗ Found $ISSUES critical issues${NC}"
+    echo -e "${YELLOW}Also found $WARNINGS warnings${NC}"
+    echo -e "${RED}Run ${BOLD}sudo powervigil-config${NC}${RED} to fix issues${NC}"
+fi
+
+echo ""
+echo -e "${BLUE}Additional Information:${NC}"
+echo "  Current runlevel: $(runlevel)"
+echo "  System uptime: $(uptime -p)"
+echo "  PowerVigil™ version: $POWERVIGIL_VERSION"
+
+# Check for any active power-related services that shouldn't be running
+echo ""
+echo -e "${BLUE}Checking for conflicting services:${NC}"
+CONFLICTING=$(systemctl list-units --state=active | grep -E "(power|suspend|sleep|hibernate)" | grep -v powervigil)
+if [ -z "$CONFLICTING" ]; then
+    echo -e "  ${GREEN}✓${NC} No conflicting power management services found"
+else
+    echo -e "  ${YELLOW}!${NC} Potentially conflicting services detected:"
+    echo "$CONFLICTING" | while read line; do
+        echo "    $line"
+    done
+fi
+
+echo ""
+exit $ISSUES

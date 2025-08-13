@@ -1,0 +1,17 @@
+[Unit]
+Description=PowerVigil™ Watchdog - Display Monitoring and Recovery
+After=graphical.target powervigil.service
+Wants=graphical.target
+Requires=powervigil.service
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/powervigil-watchdog
+Restart=always
+RestartSec=10
+User=root
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=graphical.target
