@@ -25,17 +25,31 @@ echo ""
 echo -e "${BLUE}Checking build dependencies...${NC}"
 MISSING_DEPS=""
 
-for tool in dpkg-buildpackage fakeroot; do
-    if ! command -v $tool &> /dev/null; then
-        MISSING_DEPS="$MISSING_DEPS $tool"
-    fi
-done
+# Check for dpkg-dev (provides dpkg-buildpackage)
+if ! command -v dpkg-buildpackage &> /dev/null; then
+    MISSING_DEPS="$MISSING_DEPS dpkg-dev"
+fi
+
+# Check for debhelper
+if ! dpkg -l debhelper 2>/dev/null | grep -q "^ii"; then
+    MISSING_DEPS="$MISSING_DEPS debhelper"
+fi
+
+# Check for devscripts (provides dch)
+if ! command -v dch &> /dev/null; then
+    MISSING_DEPS="$MISSING_DEPS devscripts"
+fi
+
+# Check for build-essential
+if ! dpkg -l build-essential 2>/dev/null | grep -q "^ii"; then
+    MISSING_DEPS="$MISSING_DEPS build-essential"
+fi
 
 if [ -n "$MISSING_DEPS" ]; then
     echo -e "${YELLOW}Missing build dependencies:${NC}$MISSING_DEPS"
     echo ""
     echo "Install them with:"
-    echo -e "${BOLD}sudo apt-get install build-essential debhelper devscripts dh-make fakeroot${NC}"
+    echo -e "${BOLD}sudo apt-get update && sudo apt-get install -y dpkg-dev debhelper devscripts build-essential${NC}"
     exit 1
 fi
 
@@ -56,14 +70,14 @@ chmod +x debian/rules
 chmod +x debian/postinst
 chmod +x debian/prerm
 chmod +x debian/postrm
-chmod +x debian/powervigil-*
+chmod +x debian/powervigil-* 2>/dev/null || true
 chmod +x bin/*
 
 # Build the package
 echo -e "${BLUE}Building PowerVigil™ package...${NC}"
 echo ""
 
-# Build using dpkg-buildpackage
+# Build using dpkg-buildpackage (unsigned for local builds)
 dpkg-buildpackage -us -uc -b
 
 echo ""
@@ -74,6 +88,7 @@ ls -la ../powervigil_*.deb
 echo ""
 echo -e "${CYAN}To install locally:${NC}"
 echo -e "  ${BOLD}sudo dpkg -i ../powervigil_*.deb${NC}"
+echo -e "  ${BOLD}sudo apt-get install -f${NC}  # If there are dependency issues"
 echo ""
 echo -e "${CYAN}To add to APT repository:${NC}"
 echo "  1. Copy the .deb file to your repository"
