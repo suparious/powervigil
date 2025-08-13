@@ -25,7 +25,7 @@ echo ""
 echo -e "${BLUE}Checking build dependencies...${NC}"
 MISSING_DEPS=""
 
-for tool in debhelper dh-make fakeroot; do
+for tool in dpkg-buildpackage fakeroot; do
     if ! command -v $tool &> /dev/null; then
         MISSING_DEPS="$MISSING_DEPS $tool"
     fi
