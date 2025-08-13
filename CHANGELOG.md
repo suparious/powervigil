@@ -5,7 +5,26 @@ All notable changes to PowerVigil™ will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.0.1] - 2025-01-22
+## [1.0.2] - 2025-01-22
+
+### CRITICAL FIX
+- **REMOVED dangerous kernel parameters that prevent boot on UEFI systems**
+- Removed `acpi=off` - Was breaking hardware detection
+- Removed `noapic` and `nolapic` - Were breaking USB and storage controllers
+- Removed `apm=off` - Not needed and potentially problematic
+- Removed `idle=poll` - Too aggressive for most systems
+- Changed max_cstate from 0 to 1 for better compatibility
+
+### Added
+- Emergency fix script for systems affected by v1.0.1
+- Safer kernel parameters that don't break boot
+
+### Security
+- PowerVigil no longer disables critical system components needed for boot
+
+**WARNING: DO NOT USE v1.0.1 - IT CAN PREVENT SYSTEMS FROM BOOTING**
+
+## [1.0.1] - 2025-01-22 [WITHDRAWN - CRITICAL BUG]
 
 ### Added
 - New `powervigil-disable-conflicts` utility to disable conflicting power management services

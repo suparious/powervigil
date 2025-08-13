@@ -96,11 +96,8 @@ else
     check_warn "consoleblank=0 not in kernel cmdline (reboot required?)"
 fi
 
-if grep -q "idle=poll" /proc/cmdline; then
-    check_pass "idle=poll present (maximum performance)"
-else
-    check_warn "idle=poll not present (consider adding for max performance)"
-fi
+# Note: We no longer check for aggressive parameters that can break boot
+# ACPI/APIC must remain enabled for modern hardware to function
 
 # Layer 5: USB Autosuspend
 echo -e "\n${BOLD}Layer 5: USB Power Management${NC}"

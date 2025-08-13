@@ -1,8 +1,10 @@
 # PowerVigil™ - Kiosk Performance & Recovery Framework
 
+> ⚠️ **CRITICAL WARNING**: Version 1.0.1 has a severe bug that can prevent systems from booting. DO NOT INSTALL v1.0.1. Use v1.0.2 or later. If you have v1.0.1 installed, see [Emergency Fix](#emergency-fix-for-v101) below.
+
 <div align="center">
 
-![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)
+![Version](https://img.shields.io/badge/version-1.0.2-blue.svg)
 ![License](https://img.shields.io/badge/license-GPL%20v3-green.svg)
 ![Platform](https://img.shields.io/badge/platform-Debian%2013%20%28Trixie%29-orange.svg)
 ![Status](https://img.shields.io/badge/status-production--ready-brightgreen.svg)
@@ -85,6 +87,28 @@ PowerVigil™ implements protection at multiple system levels:
 | 11 | Screensavers | Removed/disabled |
 | 12 | Watchdog Service | Active monitoring |
 | 13 | Recovery System | Automatic restoration |
+
+## ⚠️ Emergency Fix for v1.0.1
+
+If you installed PowerVigil v1.0.1 and your system won't boot:
+
+### At Boot (GRUB Menu):
+1. Press `e` to edit boot parameters
+2. Find the line starting with `linux`
+3. Remove: `acpi=off apm=off noapic nolapic`
+4. Press `Ctrl+X` to boot
+
+### Once Booted:
+```bash
+# Run the emergency fix
+sudo ./emergency-fix-boot.sh
+
+# Or manually fix:
+sudo nano /etc/default/grub
+# Remove: acpi=off apm=off noapic nolapic idle=poll
+sudo update-grub
+sudo reboot
+```
 
 ## 🏭 Enterprise Deployment
 

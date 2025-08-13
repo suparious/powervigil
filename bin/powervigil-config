@@ -125,7 +125,9 @@ configure_grub() {
     cp /etc/default/grub /etc/default/grub.backup.$(date +%Y%m%d)
     
     if ! grep -q "consoleblank=0" /etc/default/grub; then
-        sed -i 's/GRUB_CMDLINE_LINUX_DEFAULT="\(.*\)"/GRUB_CMDLINE_LINUX_DEFAULT="\1 consoleblank=0 acpi=off apm=off noapic nolapic intel_idle.max_cstate=0 processor.max_cstate=0 idle=poll"/' /etc/default/grub
+        # IMPORTANT: We do NOT disable ACPI/APIC as it breaks modern systems!
+        # Only add safe power management parameters
+        sed -i 's/GRUB_CMDLINE_LINUX_DEFAULT="\(.*\)"/GRUB_CMDLINE_LINUX_DEFAULT="\1 consoleblank=0 intel_idle.max_cstate=1 processor.max_cstate=1"/' /etc/default/grub
         update-grub
         log_success "Kernel parameters updated (reboot required)"
     else
