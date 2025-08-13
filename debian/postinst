@@ -1,0 +1,70 @@
+#!/bin/bash
+# PowerVigil™ Post-Installation Script
+
+set -e
+
+case "$1" in
+    configure)
+        echo "PowerVigil™: Configuring system for kiosk operation..."
+        
+        # Create necessary directories
+        mkdir -p /var/lib/powervigil
+        mkdir -p /var/log/powervigil
+        mkdir -p /var/backups/powervigil
+        
+        # Run the configuration script automatically
+        if [ -x /usr/bin/powervigil-config ]; then
+            echo "PowerVigil™: Applying 13-Layer Protection Matrix..."
+            /usr/bin/powervigil-config --auto --quiet || true
+        fi
+        
+        # Enable services but don't start them yet (will start after reboot)
+        echo "PowerVigil™: Enabling services..."
+        systemctl daemon-reload
+        systemctl enable powervigil.service || true
+        systemctl enable powervigil-watchdog.service || true
+        
+        # Enable auto-update timer (optional)
+        # Uncomment the following line to enable automatic updates:
+        # systemctl enable powervigil-update.timer || true
+        
+        # Create flag file to indicate first install
+        if [ ! -f /var/lib/powervigil/installed ]; then
+            date > /var/lib/powervigil/installed
+            echo "PowerVigil™: Initial installation complete"
+            echo ""
+            echo "================================================================"
+            echo "  PowerVigil™ has been installed and configured!"
+            echo "================================================================"
+            echo ""
+            echo "  IMPORTANT: A system reboot is required to activate all"
+            echo "  protection layers. The system will automatically reboot"
+            echo "  during your next maintenance window, or you can manually"
+            echo "  reboot when convenient."
+            echo ""
+            echo "  After reboot, PowerVigil™ will be fully operational."
+            echo ""
+            echo "  To verify status: sudo powervigil-verify"
+            echo "  To monitor: sudo powervigil-monitor"
+            echo ""
+            echo "================================================================"
+            
+            # Create a flag for pending reboot
+            touch /var/lib/powervigil/reboot-required
+        else
+            echo "PowerVigil™: Configuration updated"
+        fi
+        ;;
+        
+    abort-upgrade|abort-remove|abort-deconfigure)
+        ;;
+        
+    *)
+        echo "postinst called with unknown argument \`$1'" >&2
+        exit 1
+        ;;
+esac
+
+#DEBHELPER#
+
+exit 0

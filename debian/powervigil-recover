@@ -1,0 +1,28 @@
+#!/bin/bash
+# PowerVigil™ Quick Recovery Script
+
+echo "PowerVigil™ Display Recovery"
+echo "============================"
+echo "Attempting to recover unresponsive display..."
+
+# Force display on
+DISPLAY=:0 xset dpms force on 2>/dev/null || true
+
+# Reset DPMS and blanking
+DISPLAY=:0 xset -dpms 2>/dev/null || true
+DISPLAY=:0 xset s off 2>/dev/null || true
+DISPLAY=:0 xset s noblank 2>/dev/null || true
+DISPLAY=:0 xset s 0 0 2>/dev/null || true
+
+# Send wake event
+DISPLAY=:0 xdotool key Shift 2>/dev/null || true
+
+# Reset GPU if NVIDIA
+if command -v nvidia-smi &> /dev/null; then
+    nvidia-smi -pm 1 2>/dev/null || true
+fi
+
+echo "Recovery attempt complete."
+echo ""
+echo "If display is still unresponsive, run:"
+echo "  sudo systemctl restart gdm3  # or lightdm/sddm"

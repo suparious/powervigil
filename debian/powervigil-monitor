@@ -1,0 +1,23 @@
+#!/bin/bash
+# PowerVigil™ Real-time Monitor
+
+echo "PowerVigil™ Real-time Monitor"
+echo "============================="
+echo "Press Ctrl+C to exit"
+echo ""
+
+watch -n 1 '
+echo "=== PowerVigil™ Status ==="
+echo ""
+echo "CPU Governor:"
+cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor 2>/dev/null || echo "N/A"
+echo ""
+echo "Service Status:"
+systemctl is-active powervigil.service powervigil-watchdog.service
+echo ""
+echo "Recent Watchdog Activity:"
+tail -n 5 /var/log/powervigil/watchdog.log 2>/dev/null || echo "No watchdog logs yet"
+echo ""
+echo "Display Status:"
+DISPLAY=:0 timeout 1 xset q 2>/dev/null | grep -A 1 "DPMS" || echo "Cannot query display"
+'

@@ -1,0 +1,11 @@
+powervigil (1.0.0-1) stable; urgency=medium
+
+  * Initial release (Closes: #XXXXXX)
+  * 13-Layer Protection Matrix implementation
+  * Automatic display recovery watchdog
+  * Full Debian 13 (Trixie) compatibility
+  * Comprehensive power management disabling
+  * CPU and GPU performance optimization
+  * Systemd service integration
+
+ -- Shaun Prince <suparious@solidrust.net>  Wed, 22 Jan 2025 10:00:00 -0700

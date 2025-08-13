@@ -1,0 +1,41 @@
+Source: powervigil
+Section: admin
+Priority: optional
+Maintainer: Shaun Prince <suparious@solidrust.net>
+Build-Depends: debhelper-compat (= 13)
+Standards-Version: 4.6.0
+Homepage: https://github.com/suparious/powervigil
+Vcs-Browser: https://github.com/suparious/powervigil
+Vcs-Git: https://github.com/suparious/powervigil.git
+Rules-Requires-Root: no
+
+Package: powervigil
+Architecture: all
+Depends: ${misc:Depends},
+         systemd,
+         x11-xserver-utils,
+         bash (>= 4.0),
+         sed,
+         grep,
+         coreutils
+Recommends: cpufrequtils,
+            xdotool
+Suggests: nvidia-settings
+Conflicts: light-locker,
+           xscreensaver,
+           gnome-screensaver
+Description: Kiosk Performance & Recovery Framework
+ PowerVigil™ is a comprehensive power management solution designed specifically
+ for kiosk systems, digital signage, and always-on displays. It ensures displays
+ remain responsive and performant 24/7 by implementing a multi-layered approach
+ to disable power management across all system levels.
+ .
+ Features:
+  * ZeroSleep Technology™ - Complete elimination of all sleep states
+  * Performance Lock Engine - CPU and GPU locked at maximum performance
+  * AutoRecover Watchdog - Automatic detection and recovery from display issues
+  * 13-Layer Protection Matrix - Redundant safeguards at every system level
+  * Real-time Monitoring - Comprehensive logging and status verification
+ .
+ This package automatically configures your system for optimal kiosk performance
+ and includes automatic recovery mechanisms to prevent display unresponsiveness.

@@ -1,0 +1,46 @@
+#!/bin/bash
+# PowerVigil™ Post-Removal Script
+
+set -e
+
+case "$1" in
+    purge)
+        echo "PowerVigil™: Purging configuration and logs..."
+        
+        # Remove PowerVigil directories
+        rm -rf /var/lib/powervigil
+        rm -rf /var/log/powervigil
+        rm -rf /etc/powervigil
+        
+        # Remove PowerVigil-specific configurations
+        rm -f /etc/X11/xorg.conf.d/10-powervigil.conf
+        rm -f /etc/X11/Xsession.d/99-powervigil
+        rm -f /etc/systemd/logind.conf.d/powervigil.conf
+        rm -f /etc/NetworkManager/conf.d/powervigil.conf
+        rm -f /etc/udev/rules.d/50-usb-autosuspend.rules
+        
+        # Unmask systemd targets
+        echo "PowerVigil™: Restoring default power management..."
+        systemctl unmask sleep.target suspend.target hibernate.target hybrid-sleep.target 2>/dev/null || true
+        
+        # Restore CPU governor to default
+        for cpu in /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor; do
+            echo "ondemand" > "$cpu" 2>/dev/null || echo "powersave" > "$cpu" 2>/dev/null || true
+        done
+        
+        echo "PowerVigil™: System restored to default power management settings"
+        echo "Note: A reboot is recommended to fully restore all settings"
+        ;;
+        
+    remove|upgrade|failed-upgrade|abort-install|abort-upgrade|disappear)
+        ;;
+        
+    *)
+        echo "postrm called with unknown argument \`$1'" >&2
+        exit 1
+        ;;
+esac
+
+#DEBHELPER#
+
+exit 0

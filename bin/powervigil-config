@@ -382,9 +382,41 @@ EOF
     fi
 }
 
+# Parse command line arguments
+AUTO_MODE=false
+QUIET_MODE=false
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --auto)
+            AUTO_MODE=true
+            shift
+            ;;
+        --quiet)
+            QUIET_MODE=true
+            shift
+            ;;
+        --help)
+            echo "Usage: $0 [OPTIONS]"
+            echo "Options:"
+            echo "  --auto    Run in automatic mode (no prompts)"
+            echo "  --quiet   Suppress banner and non-essential output"
+            echo "  --help    Show this help message"
+            exit 0
+            ;;
+        *)
+            echo "Unknown option: $1"
+            echo "Use --help for usage information"
+            exit 1
+            ;;
+    esac
+done
+
 # Main execution
 main() {
-    show_banner
+    if [ "$QUIET_MODE" != "true" ]; then
+        show_banner
+    fi
     check_root
     
     log_step "Starting PowerVigil™ configuration..."

@@ -1,0 +1,15 @@
+[Unit]
+Description=PowerVigil Auto-Update Timer
+Requires=powervigil-update.service
+
+[Timer]
+# Run daily at 2 AM
+OnCalendar=daily
+OnCalendar=*-*-* 02:00:00
+# Run on boot if missed
+Persistent=true
+# Randomize start time by up to 30 minutes to avoid thundering herd
+RandomizedDelaySec=1800
+
+[Install]
+WantedBy=timers.target

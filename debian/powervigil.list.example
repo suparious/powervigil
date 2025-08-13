@@ -1,0 +1,13 @@
+# PowerVigil™ APT Repository Configuration
+# 
+# Add this file to your kiosks at: /etc/apt/sources.list.d/powervigil.list
+# Replace YOUR-REPO-HOST with your actual repository hostname/IP
+
+# PowerVigil™ Repository
+deb http://YOUR-REPO-HOST/apt stable main
+
+# For HTTPS repositories (recommended):
+# deb https://YOUR-REPO-HOST/apt stable main
+
+# For authenticated repositories:
+# deb https://username:password@YOUR-REPO-HOST/apt stable main

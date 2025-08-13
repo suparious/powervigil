@@ -1,0 +1,84 @@
+#!/bin/bash
+
+################################################################################
+# PowerVigil™ - Kiosk Auto-Update Script
+# 
+# This script can be deployed to kiosks via cron or systemd timer
+# to automatically update PowerVigil from your APT repository
+################################################################################
+
+LOG_FILE="/var/log/powervigil/auto-update.log"
+LOCK_FILE="/var/run/powervigil-update.lock"
+MAX_LOCK_AGE=3600  # 1 hour
+
+# Ensure log directory exists
+mkdir -p /var/log/powervigil
+
+# Logging function
+log_message() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" >> "$LOG_FILE"
+}
+
+# Check for stale lock file
+if [ -f "$LOCK_FILE" ]; then
+    LOCK_AGE=$(($(date +%s) - $(stat -c %Y "$LOCK_FILE")))
+    if [ $LOCK_AGE -gt $MAX_LOCK_AGE ]; then
+        log_message "Removing stale lock file (age: ${LOCK_AGE}s)"
+        rm -f "$LOCK_FILE"
+    else
+        log_message "Update already in progress (lock age: ${LOCK_AGE}s)"
+        exit 0
+    fi
+fi
+
+# Create lock file
+touch "$LOCK_FILE"
+trap "rm -f $LOCK_FILE" EXIT
+
+log_message "Starting PowerVigil auto-update check"
+
+# Update package lists
+apt-get update -qq 2>&1 | tee -a "$LOG_FILE"
+
+# Check if PowerVigil update is available
+UPDATE_AVAILABLE=$(apt-get -s upgrade 2>/dev/null | grep -c powervigil)
+
+if [ "$UPDATE_AVAILABLE" -gt 0 ]; then
+    log_message "PowerVigil update available, installing..."
+    
+    # Perform the update
+    DEBIAN_FRONTEND=noninteractive apt-get install -y powervigil 2>&1 | tee -a "$LOG_FILE"
+    
+    if [ $? -eq 0 ]; then
+        log_message "PowerVigil updated successfully"
+        
+        # Check if reboot is required
+        if [ -f /var/lib/powervigil/reboot-required ]; then
+            log_message "Reboot required for PowerVigil update"
+            
+            # Schedule reboot during maintenance window (3 AM)
+            CURRENT_HOUR=$(date +%H)
+            if [ "$CURRENT_HOUR" -ge 2 ] && [ "$CURRENT_HOUR" -le 4 ]; then
+                log_message "In maintenance window, rebooting in 5 minutes..."
+                shutdown -r +5 "PowerVigil update requires reboot"
+            else
+                log_message "Outside maintenance window, reboot scheduled for 3 AM"
+                shutdown -r 03:00 "PowerVigil update requires reboot"
+            fi
+        fi
+        
+        # Verify the update
+        /usr/bin/powervigil-verify >> "$LOG_FILE" 2>&1
+    else
+        log_message "ERROR: PowerVigil update failed"
+        exit 1
+    fi
+else
+    log_message "No PowerVigil updates available"
+fi
+
+# Clean up old logs (keep last 30 days)
+find /var/log/powervigil -name "*.log" -mtime +30 -delete 2>/dev/null
+
+log_message "Auto-update check completed"
+exit 0

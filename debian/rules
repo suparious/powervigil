@@ -1,0 +1,52 @@
+#!/usr/bin/make -f
+
+# PowerVigil™ Debian Package Build Rules
+
+%:
+	dh $@
+
+override_dh_auto_install:
+	# Create directories
+	mkdir -p debian/powervigil/usr/bin
+	mkdir -p debian/powervigil/usr/share/powervigil
+	mkdir -p debian/powervigil/lib/systemd/system
+	mkdir -p debian/powervigil/usr/share/doc/powervigil
+	mkdir -p debian/powervigil/etc/powervigil
+	
+	# Install executables
+	install -m 755 bin/powervigil-config debian/powervigil/usr/bin/
+	install -m 755 bin/powervigil-verify debian/powervigil/usr/bin/
+	install -m 755 bin/powervigil-watchdog debian/powervigil/usr/bin/
+	
+	# Create additional helper scripts
+	install -m 755 debian/powervigil-recover debian/powervigil/usr/bin/
+	install -m 755 debian/powervigil-monitor debian/powervigil/usr/bin/
+	install -m 755 debian/powervigil-enforce debian/powervigil/usr/bin/
+	install -m 755 debian/powervigil-auto-update debian/powervigil/usr/bin/
+	
+	# Install systemd services
+	install -m 644 systemd/powervigil.service debian/powervigil/lib/systemd/system/
+	install -m 644 systemd/powervigil-watchdog.service debian/powervigil/lib/systemd/system/
+	install -m 644 systemd/powervigil-update.service debian/powervigil/lib/systemd/system/
+	install -m 644 systemd/powervigil-update.timer debian/powervigil/lib/systemd/system/
+	
+	# Install documentation
+	install -m 644 README.md debian/powervigil/usr/share/doc/powervigil/
+	install -m 644 CHANGELOG.md debian/powervigil/usr/share/doc/powervigil/
+	
+	# Create config file
+	echo "# PowerVigil Configuration" > debian/powervigil/etc/powervigil/powervigil.conf
+	echo "VERSION=1.0.0" >> debian/powervigil/etc/powervigil/powervigil.conf
+	echo "WATCHDOG_INTERVAL=60" >> debian/powervigil/etc/powervigil/powervigil.conf
+	echo "MAX_FAILURES=3" >> debian/powervigil/etc/powervigil/powervigil.conf
+
+override_dh_installsystemd:
+	dh_installsystemd --name=powervigil --no-start
+	dh_installsystemd --name=powervigil-watchdog --no-start
+	dh_installsystemd --name=powervigil-update --no-start --no-enable
+
+override_dh_auto_build:
+	# No build steps required for shell scripts
+
+override_dh_auto_test:
+	# No tests for now

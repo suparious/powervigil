@@ -30,6 +30,7 @@ PowerVigil™ is a comprehensive power management solution designed specifically
 
 ## 🚀 Quick Start
 
+### Method 1: Direct Installation
 ```bash
 # Clone the repository
 git clone https://github.com/suparious/powervigil.git
@@ -40,6 +41,18 @@ sudo ./install.sh
 
 # Verify installation
 sudo ./bin/powervigil-verify
+```
+
+### Method 2: Debian Package (Recommended for Mass Deployment)
+```bash
+# Build the package
+./build-deb.sh
+
+# Install via dpkg
+sudo dpkg -i ../powervigil_1.0.0-1_all.deb
+
+# Or deploy via APT repository for thousands of kiosks
+# See docs/DEBIAN_DEPLOYMENT.md for details
 ```
 
 ## 📋 Requirements
@@ -68,6 +81,17 @@ PowerVigil™ implements protection at multiple system levels:
 | 11 | Screensavers | Removed/disabled |
 | 12 | Watchdog Service | Active monitoring |
 | 13 | Recovery System | Automatic restoration |
+
+## 🏭 Enterprise Deployment
+
+PowerVigil™ supports enterprise-scale deployment via:
+- **Debian Packages**: Ready for APT repositories
+- **Zero-Touch Installation**: Automatic configuration on package install
+- **Centralized Updates**: Push updates to thousands of kiosks
+- **Auto-Update Timer**: Built-in update mechanism
+- **Ansible/Puppet Ready**: Integration examples included
+
+[See Full Deployment Guide](docs/DEBIAN_DEPLOYMENT.md)
 
 ## 📦 What's Included
 

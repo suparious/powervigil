@@ -1,0 +1,10 @@
+[Unit]
+Description=PowerVigil Auto-Update Service
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/powervigil-auto-update
+StandardOutput=journal
+StandardError=journal
