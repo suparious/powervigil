@@ -178,12 +178,24 @@ EOF
     log_success "USB autosuspend disabled"
 }
 
-# Layer 6: X11/Wayland display management
+# Layer 6: Display server power management (X11 and Wayland)
 configure_display() {
     log_step "Layer 6: Configuring display power management..."
     
-    mkdir -p /etc/X11/xorg.conf.d/
-    cat > /etc/X11/xorg.conf.d/10-powervigil.conf << 'EOF'
+    # Detect display server
+    local DISPLAY_SERVER="unknown"
+    if [ -n "$WAYLAND_DISPLAY" ] || loginctl show-session $(loginctl 2>/dev/null | grep $(logname 2>/dev/null || echo root) | awk '{print $1}' 2>/dev/null) -p Type 2>/dev/null | grep -q "wayland"; then
+        DISPLAY_SERVER="wayland"
+        log_success "Detected Wayland display server"
+    elif [ -n "$DISPLAY" ] || pgrep -x "Xorg" &>/dev/null; then
+        DISPLAY_SERVER="x11"
+        log_success "Detected X11 display server"
+    fi
+    
+    # Apply X11 configurations (won't hurt on Wayland)
+    if [ "$DISPLAY_SERVER" = "x11" ] || [ "$DISPLAY_SERVER" = "unknown" ]; then
+        mkdir -p /etc/X11/xorg.conf.d/
+        cat > /etc/X11/xorg.conf.d/10-powervigil.conf << 'EOF'
 # PowerVigil™ Display Configuration
 Section "ServerFlags"
     Option "StandbyTime" "0"
@@ -202,9 +214,9 @@ Section "Extensions"
     Option "DPMS" "Disable"
 EndSection
 EOF
-    
-    # X11 session script
-    cat > /etc/X11/Xsession.d/99-powervigil << 'EOF'
+        
+        # X11 session script
+        cat > /etc/X11/Xsession.d/99-powervigil << 'EOF'
 #!/bin/sh
 # PowerVigil™ X11 Session Configuration
 xset -dpms 2>/dev/null || true
@@ -212,9 +224,36 @@ xset s noblank 2>/dev/null || true
 xset s off 2>/dev/null || true
 xset s 0 0 2>/dev/null || true
 EOF
-    chmod +x /etc/X11/Xsession.d/99-powervigil
+        chmod +x /etc/X11/Xsession.d/99-powervigil
+    fi
     
-    log_success "Display power management disabled"
+    # Apply Wayland configurations
+    if [ "$DISPLAY_SERVER" = "wayland" ] || [ "$DISPLAY_SERVER" = "unknown" ]; then
+        # GNOME Wayland settings via dconf
+        mkdir -p /etc/dconf/db/local.d/
+        cat > /etc/dconf/db/local.d/00-powervigil << 'EOF'
+[org/gnome/settings-daemon/plugins/power]
+idle-dim=false
+sleep-inactive-ac-type='nothing'
+sleep-inactive-battery-type='nothing'
+sleep-inactive-ac-timeout=0
+sleep-inactive-battery-timeout=0
+
+[org/gnome/desktop/session]
+idle-delay=uint32 0
+
+[org/gnome/desktop/screensaver]
+lock-enabled=false
+idle-activation-enabled=false
+EOF
+        
+        # Update dconf if available
+        if command -v dconf &>/dev/null; then
+            dconf update 2>/dev/null || true
+        fi
+    fi
+    
+    log_success "Display power management configured for $DISPLAY_SERVER"
 }
 
 # Layer 7: NetworkManager

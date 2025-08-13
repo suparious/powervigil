@@ -1,0 +1,346 @@
+#!/bin/bash
+
+################################################################################
+# PowerVigil™ - Display Wake Fix for BOTH Wayland and X11
+# Version: 1.0.3
+# 
+# Properly detects and handles both Wayland and X11 display servers
+################################################################################
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+BOLD='\033[1m'
+NC='\033[0m'
+
+echo -e "${CYAN}${BOLD}PowerVigil™ - Universal Display Wake Fix${NC}"
+echo "=========================================="
+echo ""
+
+# Check if running as root
+if [[ $EUID -ne 0 ]]; then
+   echo -e "${RED}This script must be run as root${NC}"
+   echo "Please run: sudo $0"
+   exit 1
+fi
+
+# Detect display server
+detect_display_server() {
+    echo -e "${BLUE}Detecting display server...${NC}"
+    
+    # Check for Wayland
+    if [ -n "$WAYLAND_DISPLAY" ] || loginctl show-session $(loginctl | grep $(logname) | awk '{print $1}') -p Type 2>/dev/null | grep -q "wayland"; then
+        echo -e "${GREEN}Wayland detected${NC}"
+        return 1
+    fi
+    
+    # Check for X11
+    if [ -n "$DISPLAY" ] || [ -n "$XAUTHORITY" ]; then
+        echo -e "${GREEN}X11 detected${NC}"
+        return 0
+    fi
+    
+    # Try to detect from process
+    if pgrep -x "Xwayland" &>/dev/null; then
+        echo -e "${GREEN}Wayland with XWayland detected${NC}"
+        return 1
+    elif pgrep -x "Xorg" &>/dev/null; then
+        echo -e "${GREEN}X11 detected${NC}"
+        return 0
+    fi
+    
+    echo -e "${YELLOW}Could not detect display server, applying both fixes${NC}"
+    return 2
+}
+
+# Detect desktop environment
+detect_desktop() {
+    if [ -n "$XDG_CURRENT_DESKTOP" ]; then
+        echo -e "${BLUE}Desktop Environment: ${GREEN}$XDG_CURRENT_DESKTOP${NC}"
+        echo "$XDG_CURRENT_DESKTOP"
+    elif pgrep -x "gnome-shell" &>/dev/null; then
+        echo -e "${BLUE}Desktop Environment: ${GREEN}GNOME${NC}"
+        echo "GNOME"
+    elif pgrep -x "plasmashell" &>/dev/null; then
+        echo -e "${BLUE}Desktop Environment: ${GREEN}KDE${NC}"
+        echo "KDE"
+    else
+        echo -e "${YELLOW}Unknown desktop environment${NC}"
+        echo "UNKNOWN"
+    fi
+}
+
+echo ""
+detect_display_server
+IS_X11=$?
+DESKTOP=$(detect_desktop)
+echo ""
+
+# WAYLAND FIXES
+if [ $IS_X11 -eq 1 ] || [ $IS_X11 -eq 2 ]; then
+    echo -e "${CYAN}Applying Wayland fixes...${NC}"
+    
+    # GNOME on Wayland
+    if [[ "$DESKTOP" == *"GNOME"* ]]; then
+        echo "  Configuring GNOME/Wayland power settings..."
+        
+        # System-wide dconf settings
+        mkdir -p /etc/dconf/db/local.d/
+        cat > /etc/dconf/db/local.d/00-powervigil-wayland << 'EOF'
+[org/gnome/settings-daemon/plugins/power]
+idle-dim=false
+sleep-inactive-ac-type='nothing'
+sleep-inactive-battery-type='nothing'
+sleep-inactive-ac-timeout=0
+sleep-inactive-battery-timeout=0
+ambient-enabled=false
+idle-brightness=100
+
+[org/gnome/desktop/session]
+idle-delay=uint32 0
+
+[org/gnome/desktop/screensaver]
+lock-enabled=false
+idle-activation-enabled=false
+lock-delay=uint32 0
+ubuntu-lock-on-suspend=false
+
+[org/gnome/desktop/interface]
+enable-animations=false
+
+[org/gnome/mutter]
+experimental-features=['']
+EOF
+        
+        # Create profile
+        cat > /etc/dconf/profile/user << 'EOF'
+user-db:user
+system-db:local
+EOF
+        
+        # Update dconf database
+        dconf update
+        
+        # For current user
+        USER_NAME=$(logname 2>/dev/null || echo $SUDO_USER)
+        if [ -n "$USER_NAME" ]; then
+            sudo -u $USER_NAME dbus-launch gsettings set org.gnome.settings-daemon.plugins.power idle-dim false 2>/dev/null || true
+            sudo -u $USER_NAME dbus-launch gsettings set org.gnome.settings-daemon.plugins.power sleep-inactive-ac-type 'nothing' 2>/dev/null || true
+            sudo -u $USER_NAME dbus-launch gsettings set org.gnome.desktop.session idle-delay 0 2>/dev/null || true
+            sudo -u $USER_NAME dbus-launch gsettings set org.gnome.desktop.screensaver lock-enabled false 2>/dev/null || true
+            sudo -u $USER_NAME dbus-launch gsettings set org.gnome.desktop.screensaver idle-activation-enabled false 2>/dev/null || true
+        fi
+        
+        echo -e "  ${GREEN}✓${NC} GNOME/Wayland configured"
+    fi
+    
+    # KDE on Wayland
+    if [[ "$DESKTOP" == *"KDE"* ]] || [[ "$DESKTOP" == *"PLASMA"* ]]; then
+        echo "  Configuring KDE/Wayland power settings..."
+        
+        # KDE config for all users
+        mkdir -p /etc/xdg/
+        cat > /etc/xdg/powermanagementprofilesrc << 'EOF'
+[AC][DPMSControl]
+idleTime=0
+lockBeforeTurnOff=0
+
+[AC][DimDisplay]
+idleTime=0
+
+[AC][HandleButtonEvents]
+lidAction=0
+powerButtonAction=0
+powerDownAction=0
+
+[AC][SuspendSession]
+idleTime=0
+suspendType=0
+
+[Battery][DPMSControl]
+idleTime=0
+
+[Battery][DimDisplay]
+idleTime=0
+
+[Battery][SuspendSession]
+idleTime=0
+suspendType=0
+EOF
+        
+        # Disable screen locking
+        cat > /etc/xdg/kscreenlockerrc << 'EOF'
+[Daemon]
+Autolock=false
+LockGrace=0
+LockOnResume=false
+Timeout=0
+EOF
+        
+        echo -e "  ${GREEN}✓${NC} KDE/Wayland configured"
+    fi
+    
+    # Wayland-specific idle inhibitor
+    echo "  Creating Wayland idle inhibitor..."
+    cat > /usr/local/bin/powervigil-wayland-inhibit << 'EOFSCRIPT'
+#!/bin/bash
+# PowerVigil Wayland Idle Inhibitor
+
+# Try different methods to inhibit idle
+inhibit_idle() {
+    # Method 1: GNOME inhibitor
+    if command -v gnome-session-inhibit &>/dev/null; then
+        gnome-session-inhibit --app-id="PowerVigil" --reason="Kiosk mode active" --inhibit=idle --inhibit=suspend --inhibit-only &
+        echo $! > /var/run/powervigil-inhibit.pid
+        return 0
+    fi
+    
+    # Method 2: systemd inhibitor
+    if command -v systemd-inhibit &>/dev/null; then
+        systemd-inhibit --what=idle:sleep:shutdown --who=PowerVigil --why="Kiosk mode active" --mode=block sleep infinity &
+        echo $! > /var/run/powervigil-inhibit.pid
+        return 0
+    fi
+    
+    # Method 3: Generic DBus method
+    dbus-send --session --dest=org.freedesktop.ScreenSaver --type=method_call /org/freedesktop/ScreenSaver org.freedesktop.ScreenSaver.Inhibit string:"PowerVigil" string:"Kiosk mode" 2>/dev/null &
+    
+    return 0
+}
+
+# Kill any existing inhibitor
+if [ -f /var/run/powervigil-inhibit.pid ]; then
+    kill $(cat /var/run/powervigil-inhibit.pid) 2>/dev/null || true
+fi
+
+# Start inhibitor
+inhibit_idle
+
+# Keep running
+while true; do
+    sleep 3600
+done
+EOFSCRIPT
+    chmod +x /usr/local/bin/powervigil-wayland-inhibit
+    
+    # Create systemd service for Wayland inhibitor
+    cat > /etc/systemd/system/powervigil-wayland-inhibit.service << 'EOF'
+[Unit]
+Description=PowerVigil Wayland Idle Inhibitor
+After=graphical.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/powervigil-wayland-inhibit
+Restart=always
+RestartSec=10
+User=root
+
+[Install]
+WantedBy=graphical.target
+EOF
+    
+    systemctl daemon-reload
+    systemctl enable powervigil-wayland-inhibit.service
+    systemctl restart powervigil-wayland-inhibit.service
+    
+    echo -e "  ${GREEN}✓${NC} Wayland idle inhibitor installed"
+fi
+
+# X11 FIXES (only if X11 detected or unknown)
+if [ $IS_X11 -eq 0 ] || [ $IS_X11 -eq 2 ]; then
+    echo -e "${CYAN}Applying X11 fixes...${NC}"
+    
+    # Your existing X11 configurations
+    mkdir -p /etc/X11/xorg.conf.d/
+    cat > /etc/X11/xorg.conf.d/10-powervigil.conf << 'EOF'
+Section "ServerFlags"
+    Option "StandbyTime" "0"
+    Option "SuspendTime" "0"
+    Option "OffTime" "0"
+    Option "BlankTime" "0"
+    Option "DPMS" "false"
+EndSection
+
+Section "Monitor"
+    Option "DPMS" "false"
+EndSection
+
+Section "Extensions"
+    Option "DPMS" "Disable"
+EndSection
+EOF
+    
+    # X11 xset commands
+    if [ -n "$DISPLAY" ]; then
+        DISPLAY=:0 xset -dpms 2>/dev/null || true
+        DISPLAY=:0 xset s off 2>/dev/null || true
+        DISPLAY=:0 xset s noblank 2>/dev/null || true
+    fi
+    
+    echo -e "  ${GREEN}✓${NC} X11 configured"
+fi
+
+# UNIVERSAL FIXES (work on both)
+echo -e "${CYAN}Applying universal fixes...${NC}"
+
+# Systemd-logind configuration
+mkdir -p /etc/systemd/logind.conf.d/
+cat > /etc/systemd/logind.conf.d/no-idle.conf << 'EOF'
+[Login]
+IdleAction=ignore
+IdleActionSec=0
+HandleSuspendKey=ignore
+HandleHibernateKey=ignore
+HandleLidSwitch=ignore
+HandleLidSwitchDocked=ignore
+HandleLidSwitchExternalPower=ignore
+HandlePowerKey=ignore
+InhibitDelayMaxSec=0
+UserTasksMax=infinity
+EOF
+
+systemctl restart systemd-logind
+
+echo -e "  ${GREEN}✓${NC} Systemd-logind configured"
+
+# Install utilities if missing
+if ! command -v gnome-session-inhibit &>/dev/null && [[ "$DESKTOP" == *"GNOME"* ]]; then
+    echo "  Installing GNOME session tools..."
+    apt-get install -y gnome-session-bin 2>/dev/null || true
+fi
+
+echo ""
+echo -e "${GREEN}${BOLD}═══════════════════════════════════════════════════════════════════${NC}"
+echo -e "${GREEN}${BOLD}  Display Wake Configuration Complete${NC}"
+echo -e "${GREEN}${BOLD}═══════════════════════════════════════════════════════════════════${NC}"
+echo ""
+echo "Detected Configuration:"
+echo -e "  Display Server: ${CYAN}$([ $IS_X11 -eq 0 ] && echo "X11" || echo "Wayland")${NC}"
+echo -e "  Desktop: ${CYAN}$DESKTOP${NC}"
+echo ""
+echo "Applied Fixes:"
+if [ $IS_X11 -eq 1 ] || [ $IS_X11 -eq 2 ]; then
+    echo "  ✓ Wayland idle inhibitor active"
+    echo "  ✓ Desktop environment power settings disabled"
+    echo "  ✓ DBus idle prevention active"
+fi
+if [ $IS_X11 -eq 0 ] || [ $IS_X11 -eq 2 ]; then
+    echo "  ✓ X11 DPMS disabled"
+    echo "  ✓ X11 screensaver disabled"
+fi
+echo "  ✓ Systemd-logind idle disabled"
+echo ""
+echo -e "${YELLOW}Note: You may need to log out and back in for all settings to take effect${NC}"
+echo ""
+echo "To verify idle inhibition is working:"
+if [ $IS_X11 -eq 1 ]; then
+    echo "  gsettings get org.gnome.desktop.session idle-delay"
+    echo "  systemd-inhibit --list"
+else
+    echo "  DISPLAY=:0 xset q | grep -A 2 DPMS"
+fi
+echo ""
