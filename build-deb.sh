@@ -56,6 +56,12 @@ fi
 echo -e "${GREEN}  ✓${NC} All build dependencies satisfied"
 echo ""
 
+# Save original maintainer scripts
+echo -e "${BLUE}Backing up maintainer scripts...${NC}"
+cp debian/postinst debian/postinst.orig 2>/dev/null || true
+cp debian/prerm debian/prerm.orig 2>/dev/null || true
+cp debian/postrm debian/postrm.orig 2>/dev/null || true
+
 # Clean previous builds
 echo -e "${BLUE}Cleaning previous builds...${NC}"
 rm -rf debian/powervigil
@@ -79,6 +85,18 @@ echo ""
 
 # Build using dpkg-buildpackage (unsigned for local builds)
 dpkg-buildpackage -us -uc -b
+
+# Restore original maintainer scripts
+echo -e "${BLUE}Restoring original maintainer scripts...${NC}"
+if [ -f debian/postinst.orig ]; then
+    mv debian/postinst.orig debian/postinst
+fi
+if [ -f debian/prerm.orig ]; then
+    mv debian/prerm.orig debian/prerm
+fi
+if [ -f debian/postrm.orig ]; then
+    mv debian/postrm.orig debian/postrm
+fi
 
 echo ""
 echo -e "${GREEN}${BOLD}Package built successfully!${NC}"

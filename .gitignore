@@ -1,0 +1,57 @@
+# PowerVigil™ .gitignore
+
+# Logs
+*.log
+/var/log/
+
+# Backups
+*.backup
+*.bak
+*~
+*.orig
+
+# Debian build artifacts
+debian/powervigil/
+debian/*.debhelper
+debian/*.debhelper.log
+debian/*.substvars
+debian/files
+debian/.debhelper/
+debian/debhelper-build-stamp
+
+# Build output (packages built in parent directory)
+../*.deb
+../*.dsc
+../*.tar.*
+../*.changes
+../*.buildinfo
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Editor files
+*.swp
+*.swo
+.vscode/
+.idea/
+
+# Build artifacts
+*.o
+*.so
+build/
+dist/
+
+# Documentation build
+docs/_build/
+*.pdf
+
+# Test files
+test/
+tests/
+*.test
+
+# Temporary files
+tmp/
+temp/
+*.tmp
