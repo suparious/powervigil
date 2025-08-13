@@ -345,6 +345,29 @@ configure_acpi() {
     log_success "ACPI events disabled"
 }
 
+# Layer 12b: Disable conflicting power management services
+disable_conflicting_services() {
+    log_step "Layer 12b: Disabling conflicting power management services..."
+    
+    local conflicting_services=(
+        "power-profiles-daemon.service"
+        "upower.service"
+        "thermald.service"
+        "tlp.service"
+        "laptop-mode.service"
+        "auto-cpufreq.service"
+    )
+    
+    for service in "${conflicting_services[@]}"; do
+        if systemctl list-unit-files | grep -q "^${service}"; then
+            systemctl stop "$service" 2>/dev/null || true
+            systemctl disable "$service" 2>/dev/null || true
+            systemctl mask "$service" 2>/dev/null || true
+            log_success "Disabled $service"
+        fi
+    done
+}
+
 # Layer 13: Desktop environment settings
 configure_desktop() {
     log_step "Layer 13: Configuring desktop environment..."
@@ -442,6 +465,7 @@ main() {
     configure_gpu
     create_service
     configure_acpi
+    disable_conflicting_services
     configure_desktop
     
     echo ""

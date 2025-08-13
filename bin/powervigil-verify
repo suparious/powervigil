@@ -233,14 +233,27 @@ echo "  PowerVigil™ version: $POWERVIGIL_VERSION"
 # Check for any active power-related services that shouldn't be running
 echo ""
 echo -e "${BLUE}Checking for conflicting services:${NC}"
-CONFLICTING=$(systemctl list-units --state=active | grep -E "(power|suspend|sleep|hibernate)" | grep -v powervigil)
-if [ -z "$CONFLICTING" ]; then
+
+# List of known conflicting services
+KNOWN_CONFLICTS=("power-profiles-daemon" "upower" "thermald" "tlp" "laptop-mode" "auto-cpufreq")
+FOUND_CONFLICTS=0
+
+for service in "${KNOWN_CONFLICTS[@]}"; do
+    if systemctl is-active "${service}.service" &>/dev/null; then
+        if [ $FOUND_CONFLICTS -eq 0 ]; then
+            echo -e "  ${RED}✗${NC} Conflicting services detected:"
+        fi
+        echo -e "    ${RED}✗${NC} ${service}.service is active"
+        ((FOUND_CONFLICTS++))
+        ((ISSUES++))
+    fi
+done
+
+if [ $FOUND_CONFLICTS -eq 0 ]; then
     echo -e "  ${GREEN}✓${NC} No conflicting power management services found"
 else
-    echo -e "  ${YELLOW}!${NC} Potentially conflicting services detected:"
-    echo "$CONFLICTING" | while read line; do
-        echo "    $line"
-    done
+    echo ""
+    echo -e "  ${YELLOW}Run this to fix:${NC} ${BOLD}sudo powervigil-disable-conflicts${NC}"
 fi
 
 echo ""

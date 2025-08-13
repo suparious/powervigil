@@ -17,6 +17,7 @@ override_dh_auto_install:
 	install -m 755 bin/powervigil-config debian/powervigil/usr/bin/
 	install -m 755 bin/powervigil-verify debian/powervigil/usr/bin/
 	install -m 755 bin/powervigil-watchdog debian/powervigil/usr/bin/
+	install -m 755 bin/powervigil-disable-conflicts debian/powervigil/usr/bin/
 	
 	# Create additional helper scripts
 	install -m 755 debian/powervigil-recover debian/powervigil/usr/bin/

@@ -5,6 +5,24 @@ All notable changes to PowerVigil™ will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.1] - 2025-01-22
+
+### Added
+- New `powervigil-disable-conflicts` utility to disable conflicting power management services
+- Automatic detection and disabling of conflicting services in main configuration
+- Better detection of conflicting services in verification script
+- Support for disabling power-profiles-daemon, upower, thermald, tlp, laptop-mode, and auto-cpufreq
+
+### Fixed
+- Debian package build process now preserves maintainer scripts
+- Added `.gitignore` entries for Debian build artifacts
+- Build script now backs up and restores maintainer scripts automatically
+
+### Changed
+- Configuration script now includes Layer 12b for conflicting service management
+- Verification script provides clearer guidance on fixing conflicts
+- Updated documentation for build process
+
 ## [1.0.0] - 2025-01-22
 
 ### Added

@@ -1,3 +1,13 @@
+powervigil (1.0.1-1) stable; urgency=medium
+
+  * Added automatic detection and disabling of conflicting services
+  * New powervigil-disable-conflicts utility
+  * Fixed debian build process to preserve maintainer scripts
+  * Improved verification script conflict detection
+  * Added support for disabling power-profiles-daemon and upower
+
+ -- Shaun Prince <suparious@solidrust.net>  Wed, 22 Jan 2025 11:30:00 -0700
+
 powervigil (1.0.0-1) stable; urgency=medium
 
   * Initial release (Closes: #XXXXXX)

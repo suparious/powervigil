@@ -1,0 +1,76 @@
+#!/bin/bash
+
+################################################################################
+# PowerVigil™ - Disable Conflicting Services
+# 
+# This script disables services that conflict with PowerVigil's 
+# performance and power management settings
+################################################################################
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+CYAN='\033[0;36m'
+BOLD='\033[1m'
+NC='\033[0m'
+
+echo -e "${CYAN}${BOLD}PowerVigil™ - Disabling Conflicting Services${NC}"
+echo "=============================================="
+echo ""
+
+# Check if running as root
+if [[ $EUID -ne 0 ]]; then
+   echo -e "${RED}This script must be run as root${NC}"
+   echo "Please run: sudo $0"
+   exit 1
+fi
+
+# Services that conflict with PowerVigil
+CONFLICTING_SERVICES=(
+    "power-profiles-daemon.service"
+    "upower.service"
+    "thermald.service"
+    "tlp.service"
+    "laptop-mode.service"
+    "auto-cpufreq.service"
+)
+
+echo -e "${CYAN}Checking for conflicting services...${NC}"
+echo ""
+
+for service in "${CONFLICTING_SERVICES[@]}"; do
+    if systemctl list-unit-files | grep -q "^${service}"; then
+        echo -e "${YELLOW}Found:${NC} $service"
+        
+        # Check if service is active
+        if systemctl is-active "$service" &>/dev/null; then
+            echo -e "  Status: ${YELLOW}Active${NC} - Stopping and disabling..."
+            systemctl stop "$service" 2>/dev/null || true
+            systemctl disable "$service" 2>/dev/null || true
+            systemctl mask "$service" 2>/dev/null || true
+            echo -e "  ${GREEN}✓${NC} Service masked and disabled"
+        else
+            echo -e "  Status: Inactive - Disabling..."
+            systemctl disable "$service" 2>/dev/null || true
+            systemctl mask "$service" 2>/dev/null || true
+            echo -e "  ${GREEN}✓${NC} Service masked"
+        fi
+    fi
+done
+
+echo ""
+echo -e "${GREEN}${BOLD}Conflicting services have been disabled!${NC}"
+echo ""
+echo "These services are now masked and won't interfere with PowerVigil:"
+for service in "${CONFLICTING_SERVICES[@]}"; do
+    if systemctl list-unit-files | grep -q "^${service}.*masked"; then
+        echo -e "  ${GREEN}✓${NC} $service"
+    fi
+done
+
+echo ""
+echo -e "${CYAN}Next steps:${NC}"
+echo "1. Run: ${BOLD}sudo powervigil-verify${NC} to check status"
+echo "2. Reboot to ensure all changes take effect"
+echo ""
